@@ -14,8 +14,8 @@ const client = new Client({
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-// První část pravidel (nečíslovaná)
-const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA (1/2)
+// První část pravidel (obsahuje nadpis)
+const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
 
 Vítej na 마고리. Jsme server pro lidi, kteří si chtějí pokecat, zahrát si, koukat na filmy a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
 
@@ -34,10 +34,8 @@ Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefo
 ### Podvody a škodlivý obsah
 Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
 
-// Druhá část pravidel (nečíslovaná) + tresty a důležité
-const RULES_PART_2 = `# 🛡️ 마고리 — PRAVIDLA (2/2)
-
-### Voice chat
+// Druhá část pravidel (bez nadpisu, pokračuje rovnou textem)
+const RULES_PART_2 = `### Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
 
 ### Respektuj moderátory
@@ -149,10 +147,10 @@ async function handleCommands(message) {
         }
 
         try {
-            // Pošle první část pravidel
+            // Pošle první část pravidel (s nadpisem)
             await message.channel.send({ content: RULES_PART_1 });
 
-            // Pošle druhou část pravidel s výzvou k reakci
+            // Pošle druhou část pravidel (bez nadpisu) s výzvou k reakci
             const secondMessage = await message.channel.send({
                 content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
