@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, StringSelectMenuBuilder, ActivityType, Partials, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ActivityType, Partials, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -106,38 +106,15 @@ async function handleCommands(message) {
         }
 
         try {
-            const rowColor = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('select_color_role')
-                    .setPlaceholder('🎨 Vyber si barvu jména...')
-                    .addOptions([
-                        { label: 'Červená', value: '1540028254885257256', emoji: '🔴' },
-                        { label: 'Modrá', value: '1540028432614817862', emoji: '🔵' },
-                        { label: 'Zelená', value: '1540028872312225914', emoji: '🟢' },
-                        { label: 'Fialová', value: '1540028968273449002', emoji: '🟣' },
-                        { label: 'Žlutá', value: '1553041371986927657', emoji: '🟡' },
-                    ])
-            );
-
-            const rowAge = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('select_age_role')
-                    .setPlaceholder('🎂 Vyber si svůj věk...')
-                    .addOptions([
-                        { label: '13-17+', value: '1553032262696566915', emoji: '🔞' },
-                        { label: '18+', value: '1553032409073586186', emoji: '🔞' },
-                    ])
-            );
-
+            // Menu byla odstraněna, posílá se čistě text s pravidly a výzvou k reakci
             const sentMessage = await message.channel.send({
-                content: RULES_MSG + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role a níže si vyber své doplňkové role:**",
-                components: [rowColor, rowAge]
+                content: RULES_MSG + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
 
             await sentMessage.react('✅');
             await message.delete().catch(() => {});
         } catch (err) {
-            console.error("Chyba při odesílání pravidel a rolí:", err);
+            console.error("Chyba při odesílání pravidel:", err);
             message.channel.send("Nastala chyba při vytváření zprávy s pravidly.");
         }
     }
@@ -177,32 +154,6 @@ client.on('messageReactionRemove', async (reaction, user) => {
             if (member.roles.cache.has(roleId)) {
                 await member.roles.remove(roleId).catch(err => console.error("Chyba při odebrání role:", err));
             }
-        }
-    }
-});
-
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isStringSelectMenu()) return;
-    
-    if (interaction.customId === 'select_color_role' || interaction.customId === 'select_age_role') {
-        const roleId = interaction.values[0];
-        const role = interaction.guild.roles.cache.get(roleId);
-
-        if (!role) {
-            return interaction.reply({ content: "⚠️ Role na serveru nebyla nalezena.", ephemeral: true });
-        }
-
-        try {
-            if (interaction.member.roles.cache.has(roleId)) {
-                await interaction.member.roles.remove(roleId);
-                await interaction.reply({ content: `❌ Role **${role.name}** ti byla odebrána.`, ephemeral: true });
-            } else {
-                await interaction.member.roles.add(roleId);
-                await interaction.reply({ content: `✅ Role **${role.name}** ti byla přidána!`, ephemeral: true });
-            }
-        } catch (err) {
-            console.error(err);
-            await interaction.reply({ content: "❌ Nemám oprávnění spravovat tuto roli!", ephemeral: true });
         }
     }
 });
