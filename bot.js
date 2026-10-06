@@ -106,7 +106,7 @@ async function handleCommands(message) {
         }
 
         try {
-            // Menu byla odstraněna, posílá se čistě text s pravidly a výzvou k reakci
+            // Zpráva obsahuje už jen pravidla a výzvu k reakci (žádná komponenta / menu)
             const sentMessage = await message.channel.send({
                 content: RULES_MSG + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
