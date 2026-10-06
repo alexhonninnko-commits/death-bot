@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, ActivityType, Partials, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ActivityType, Partials, AuditLogEvent, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -6,13 +6,18 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessageReactions
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildBans,
+        GatewayIntentBits.GuildVoiceStates
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
+
+// ID logovacího kanálu
+const LOG_CHANNEL_ID = '1552794840025010227';
 
 // První část pravidel (obsahuje nadpis)
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
@@ -34,7 +39,7 @@ Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefo
 ### Podvody a škodlivý obsah
 Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
 
-// Druhá část pravidel (bez nadpisu, pokračuje rovnou textem)
+// Druhá část pravidel (bez nadpisu)
 const RULES_PART_2 = `### Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
 
@@ -74,6 +79,18 @@ client.once('ready', () => {
     client.user.setActivity('Zabezpečuje server', { type: ActivityType.Watching });
 });
 
+// Pomocná funkce pro odesílání logů
+async function sendLog(guild, embed) {
+    try {
+        const channel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (channel && channel.isTextBased()) {
+            await channel.send({ embeds: [embed] });
+        }
+    } catch (err) {
+        console.error("Chyba při odesílání logu:", err);
+    }
+}
+
 client.on('guildMemberAdd', async (member) => {
     try {
         const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
@@ -90,6 +107,167 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
+// === LOGOVACÍ SYSTÉMY ===
+
+// 1. Logování přiřazení rolí (včetně detekce nebezpečných oprávnění jako na fotce č. 2)
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
+    if (addedRoles.size === 0) return;
+
+    try {
+        const fetchedLogs = await newMember.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.MemberRoleUpdate,
+        });
+        const deletionLog = fetchedLogs.entries.first();
+        let executor = "Neznámý";
+        if (deletionLog && deletionLog.target.id === newMember.id) {
+            executor = deletionLog.executor;
+        }
+
+        for (const role of addedRoles.values()) {
+            // Kontrola nebezpečných oprávnění
+            const dangerousPermissions = [
+                PermissionsBitField.Flags.Administrator,
+                PermissionsBitField.Flags.ManageRoles,
+                PermissionsBitField.Flags.ManageChannels,
+                PermissionsBitField.Flags.BanMembers,
+                PermissionsBitField.Flags.KickMembers,
+                PermissionsBitField.Flags.ManageGuild
+            ];
+
+            const hasDangerous = dangerousPermissions.some(perm => role.permissions.has(perm));
+
+            const embed = new EmbedBuilder()
+                .setColor(hasDangerous ? 0xED4245 : 0x57F287)
+                .setAuthor({ name: newMember.guild.name, iconURL: newMember.guild.iconURL() })
+                .setTitle("👤 Role Given")
+                .setDescription(`The **${role.name}** role was given to **${newMember.user.tag}**`)
+                .addFields(
+                    { name: "Given by:", value: `<@${executor.id || executor}>`, inline: false }
+                )
+                .setFooter({ text: `ID: ${newMember.id}` })
+                .setTimestamp();
+
+            if (hasDangerous) {
+                embed.addFields({ name: "WARNING!", value: "```diff\n- Dangerous permissions granted\n```", inline: false });
+            }
+
+            await sendLog(newMember.guild, embed);
+        }
+    } catch (err) {
+        console.error("Chyba při logování rolí:", err);
+    }
+});
+
+// 2. Logování Banů
+client.on('guildBanAdd', async (ban) => {
+    try {
+        const fetchedLogs = await ban.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.MemberBanAdd,
+        });
+        const banLog = fetchedLogs.entries.first();
+        let executor = "Neznámý";
+        if (banLog && banLog.target.id === ban.user.id) {
+            executor = banLog.executor;
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle("🔨 Uživatel zabanován")
+            .setDescription(`Uživatel **${ban.user.tag}** byl zabanován ze serveru.`)
+            .addFields({ name: "Zabranoval:", value: `<@${executor.id || executor}>`, inline: false })
+            .setFooter({ text: `ID: ${ban.user.id}` })
+            .setTimestamp();
+
+        await sendLog(ban.guild, embed);
+    } catch (err) {
+        console.error("Chyba při logování banu:", err);
+    }
+});
+
+// 3. Logování Kicků a Timeoutů (přes audit log při aktualizaci člena)
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    // Sledování Timeoutu (CommunicationDisabledUntil)
+    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
+        if (newMember.communicationDisabledUntilTimestamp) {
+            try {
+                const fetchedLogs = await newMember.guild.fetchAuditLogs({
+                    limit: 1,
+                    type: AuditLogEvent.MemberUpdate,
+                });
+                const log = fetchedLogs.entries.first();
+                let executor = log ? log.executor : "Neznámý";
+
+                const embed = new EmbedBuilder()
+                    .setColor(0xFEE75C)
+                    .setTitle("⏱️ Uživatel dostal Timeout")
+                    .setDescription(`Uživatel **${newMember.user.tag}** dostal pauzu.`)
+                    .addFields({ name: "Udělil:", value: `<@${executor.id || executor}>`, inline: false })
+                    .setFooter({ text: `ID: ${newMember.id}` })
+                    .setTimestamp();
+
+                await sendLog(newMember.guild, embed);
+            } catch (err) {
+                console.error("Chyba při logování timeoutu:", err);
+            }
+        }
+    }
+});
+
+// 4. Logování úprav kanálů
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!newChannel.guild) return;
+    try {
+        const fetchedLogs = await newChannel.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.ChannelUpdate,
+        });
+        const log = fetchedLogs.entries.first();
+        let executor = log ? log.executor : "Neznámý";
+
+        const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle("📝 Kanál upraven")
+            .setDescription(`Kanál **${newChannel.name}** byl upraven.`)
+            .addFields({ name: "Upravil:", value: `<@${executor.id || executor}>`, inline: false })
+            .setFooter({ text: `ID: ${newChannel.id}` })
+            .setTimestamp();
+
+        await sendLog(newChannel.guild, embed);
+    } catch (err) {
+        console.error("Chyba při logování kanálu:", err);
+    }
+});
+
+// 5. Logování Voice Channelů (VC) - připojení, odpojení, změna
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const user = newState.member.user;
+    const guild = newState.guild;
+
+    let actionText = "";
+    if (!oldState.channelId && newState.channelId) {
+        actionText = `se připojil do hlasového kanálu **${newState.channel.name}**`;
+    } else if (oldState.channelId && !newState.channelId) {
+        actionText = `opustil hlasový kanál **${oldState.channel.name}**`;
+    } else if (oldState.channelId !== newState.channelId) {
+        actionText = `přestoupil z kanálu **${oldState.channel.name}** do **${newState.channel.name}**`;
+    } else {
+        return;
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle("🔊 Voice Channel Aktivita")
+        .setDescription(`Uživatel **${user.tag}** ${actionText}`)
+        .setFooter({ text: `ID: ${user.id}` })
+        .setTimestamp();
+
+    await sendLog(guild, embed);
+});
+
+// Ostatní bezpečnostní filtry a příkaz setup_roles
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -147,18 +325,13 @@ async function handleCommands(message) {
         }
 
         try {
-            // Pošle první část pravidel (s nadpisem)
             await message.channel.send({ content: RULES_PART_1 });
 
-            // Pošle druhou část pravidel (bez nadpisu) s výzvou k reakci
             const secondMessage = await message.channel.send({
                 content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
 
-            // Přidá reakci na druhou zprávu
             await secondMessage.react('✅');
-            
-            // Smaže příkaz administrátora
             await message.delete().catch(() => {});
         } catch (err) {
             console.error("Chyba při odesílání pravidel:", err);
