@@ -101,9 +101,8 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// === LOGY (přesně podle tvého vzoru) ===
+// === LOGY ===
 
-// 1. Přidání role (včetně nebezpečných práv jako na fotce č. 2)
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
     if (addedRoles.size === 0) return;
@@ -147,7 +146,6 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     }, 1000);
 });
 
-// 2. Ban
 client.on('guildBanAdd', async (ban) => {
     setTimeout(async () => {
         try {
@@ -160,131 +158,4 @@ client.on('guildBanAdd', async (ban) => {
                 .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
                 .setTitle("🔨 Ban Given")
                 .setDescription(`Uživatel **${ban.user.tag}** byl zabanován.`)
-                .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
-                .setFooter({ text: `ID: ${ban.user.id}` })
-                .setTimestamp();
-
-            await sendLog(ban.guild, embed);
-        } catch (err) {
-            console.error("Chyba logu banu:", err);
-        }
-    }, 1000);
-});
-
-// 3. Kick (Sleduje odebrání uživatele ze serveru, který nebyl banem)
-client.on('guildMemberRemove', async (member) => {
-    setTimeout(async () => {
-        try {
-            const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick });
-            const log = fetchedLogs.entries.first();
-            if (!log || log.target.id !== member.id) return;
-
-            let executor = log.executor;
-
-            const embed = new EmbedBuilder()
-                .setColor(0xED4245)
-                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
-                .setTitle("👢 Kick Given")
-                .setDescription(`Uživatel **${member.user.tag}** byl vyhozen ze serveru.`)
-                .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
-                .setFooter({ text: `ID: ${member.id}` })
-                .setTimestamp();
-
-            await sendLog(member.guild, embed);
-        } catch (err) {
-            console.error("Chyba logu kicku:", err);
-        }
-    }, 1000);
-});
-
-// 4. Timeout (Pauza)
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
-        if (newMember.communicationDisabledUntilTimestamp) {
-            setTimeout(async () => {
-                try {
-                    const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
-                    const log = fetchedLogs.entries.first();
-                    let executor = log ? log.executor : { tag: "Neznámý", id: newMember.id };
-
-                    const embed = new EmbedBuilder()
-                        .setColor(0xFEE75C)
-                        .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
-                        .setTitle("⏱️ Timeout Given")
-                    .setDescription(`Uživatel **${newMember.user.tag}** dostal timeout.`)
-                        .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
-                        .setFooter({ text: `ID: ${newMember.id}` })
-                        .setTimestamp();
-
-                    await sendLog(newMember.guild, embed);
-                } catch (err) {
-                    console.error("Chyba logu timeoutu:", err);
-                }
-            }, 1000);
-        }
-    }
-});
-
-// 5. Úprava kanálu
-client.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (!newChannel.guild) return;
-    setTimeout(async () => {
-        try {
-            const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
-            const log = fetchedLogs.entries.first();
-            let executor = log ? log.executor : { tag: "Neznámý", id: newChannel.id };
-
-            const embed = new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
-                .setTitle("📝 Channel Updated")
-                .setDescription(`Kanál **${newChannel.name}** byl upraven.`)
-                .addFields({ name: "Updated by:", value: `<@${executor.id}>`, inline: false })
-                .setFooter({ text: `ID: ${newChannel.id}` })
-                .setTimestamp();
-
-            await sendLog(newChannel.guild, embed);
-        } catch (err) {
-            console.error("Chyba logu kanálu:", err);
-        }
-    }, 1000);
-});
-
-// 6. Voice Channel (VC) aktivita
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const user = newState.member.user;
-    const guild = newState.guild;
-
-    let actionText = "";
-    if (!oldState.channelId && newState.channelId) {
-        actionText = `se připojil do VC **${newState.channel.name}**`;
-    } else if (oldState.channelId && !newState.channelId) {
-        actionText = `opustil VC **${oldState.channel.name}**`;
-    } else if (oldState.channelId !== newState.channelId) {
-        actionText = `přestoupil z VC **${oldState.channel.name}** do **${newState.channel.name}**`;
-    } else {
-        return;
-    }
-
-    const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
-        .setTitle("🔊 Voice Activity")
-        .setDescription(`Uživatel **${user.tag}** ${actionText}`)
-        .setFooter({ text: `ID: ${user.id}` })
-        .setTimestamp();
-
-    await sendLog(guild, embed);
-});
-
-// Standardní příkazy a filtry
-client.on('messageCreate', async (message) => {
-    if (message.author.bot || !message.guild) return;
-
-    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        await handleCommands(message);
-        return;
-    }
-
-    const contentLower = message.content.toLowerCase();
-    if (contentLower.includes("http://") || contentLower.includes("https://") || contentLower.includes("discord
+                .addFields({ name: "Given by:", value: `<@${executor.
