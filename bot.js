@@ -1,49 +1,95 @@
-const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, StringSelectMenuBuilder, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, StringSelectMenuBuilder, ActivityType, Partials, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ]
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessageReactions
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-const DEFAULT_ROLES_MSG = `# role
+const RULES_MSG = `# 🛡️️ 마고리 — PRAVIDLA
 
-<@&1539241329899474954> - **je vlastník serveru, který rozhoduje, co se na server přidá**
+Vítej v NLKomunity. Jsme komunita pro lidi, kteří si chtějí pokecat, zahrát si a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
 
-<@&1552268147179135046> - **je člen A-Teamu, který s majitelem dělá změny na serveru a hlídá ho**
+### 1. Žádné drama
+Osobní konflikty si řešte mimo veřejné chaty. Nezahlcuj komunitu hádkami, beefem nebo veřejným řešením osobních problémů.
 
-<@&1539240450810978364> - **je člen A-Teamu, který může také provádět změny na serveru (na žádost majitele) a hlídá server**
+### 2. Spam a reklama
+Nespamuj zprávy, emoji, mentiony ani hlasové kanály. Reklamu na vlastní servery, projekty nebo jiné komunity posílej pouze tam, kde je to povolené.
 
-<@&1552391311754133555> - **je člen A-Teamu, který testuje, zda všechno funguje**
+### 3. Nevhodný obsah
+Zakázaný je pornografický, extrémně násilný, šokující nebo jinak nevhodný obsah. Platí to pro zprávy, obrázky, videa, odkazy i profilový obsah.
 
-<@&1549866576029814784> - **je role pro členy, kteří jsou aktivní na serveru a ve voice chatu (VC)**
+### 4. Osobní údaje
+Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefonní číslo, hesla nebo jiné citlivé informace.
 
-<@&1539242304013992048> - **je role, kterou mají všichni na serveru**
+### 5. Podvody a škodlivý obsah
+Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokusit někomu poškodit účet či zařízení.
 
-<@&1543385078992871524> / <@&1543385813943984239> - **je pro členy, kteří si o roli požádají**
+### 6. Voice chat
+V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
 
-<@&1540028254885257256> / <@&1540028432614817862> / <@&1540028872312225914> / <@&1540028968273449002> / <@&1553041371986927657> - **je pro členy, kteří si požádají o barvu přezdívky na serveru**
+### 7. Respektuj moderátory
+Moderátoři jsou tu od toho, aby udržovali pořádek. Pokud máš problém s rozhodnutím moderátora, řeš ho v soukromí a slušně, ne veřejnou hádkou.
 
-<@&1553032262696566915> / <@&1553032409073586186> - **je pro členy, kteří si požádají o zobrazení svého věku**
+### 8. Využívej správné kanály
+Piš věci tam, kam patří. Pomáhá to udržet server přehledný a příjemný pro všechny.
 
-<@&1549872649877069924> - **je pro členy, kteří dají serveru Server Boost**`;
+### 9. Selský rozum
+Ne všechno se dá napsat do pravidel. Pokud něco očividně škodí komunitě nebo ostatním členům, nedělej to.
+
+### 10. Neznalost pravidel se nepočítá 
+Pravidla se můžou změnit neustále
+
+---
+
+## ⚠️ TRESTY
+Porušení pravidel může podle situace vést k:
+- upozornění
+- timeoutu
+- odstranění zpráv
+- kicku
+- dočasnému banu
+- permanentnímu banu
+
+Trest se může lišit podle závažnosti a opakování přestupku.
+
+## 📌 DŮLEŽITÉ
+Pravidla nejsou vytvořená proto, že někomu znepříjemňují pobyt na serveru. Mají zajistit, aby se tu mohli všichni normálně bavit, hrát a komunikovat.
+
+**Buď v pohodě. Respektuj ostatní. A hlavně si to užij. ❤️**`;
 
 client.once('ready', () => {
     console.log(`[BOT] Přihlášen jako: ${client.user.tag} (ID: ${client.user.id})`);
 
     // --- NASTAVENÍ PROFILU BOTA PŘI SPUŠTĚNÍ ---
-    // 1. Stav (Můžeš změnit na: 'online', 'idle', 'dnd', 'invisible')
     client.user.setStatus('dnd');
-
-    // 2. Bio / Aktivita (Co bot "právě dělá" pod svým jménem)
     client.user.setActivity('Zabezpečuje server a mnoho dalšího', { type: ActivityType.Watching });
-    // Typy aktivit mohou být: ActivityType.Playing, ActivityType.Streaming, ActivityType.Listening, ActivityType.Watching
+});
+
+// --- VÍTÁNÍ NOVÝCH ČLENŮ ---
+client.on('guildMemberAdd', async (member) => {
+    try {
+        // Hledá textový kanál podle jména, které používáš ve struktuře serveru
+        const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
+        if (!channel) return;
+
+        const welcomeEmbed = new EmbedBuilder()
+            .setColor(0x5865F2) // Modrý postranní proužek jako na obrázku
+            .setDescription(`👋 **Nový člen na serveru!**\n\nVítej ${member}! Podívej se na pravidla a potvrď je, poté budeš moci prozkoumávat komunitu, jak se ti jen zachce.`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true })); // Zobrazí avatar nového uživatele (nebo lze nahradit vlastní URL obrázku)
+
+        await channel.send({ embeds: [welcomeEmbed] });
+    } catch (err) {
+        console.error("Chyba při odesílání uvítací zprávy:", err);
+    }
 });
 
 client.on('messageCreate', async (message) => {
@@ -109,65 +155,4 @@ async function handleCommands(message) {
             const rowColor = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('select_color_role')
-                    .setPlaceholder('🎨 Vyber si barvu jména...')
-                    .addOptions([
-                        { label: 'Červená', value: '1540028254885257256', emoji: '🔴' },
-                        { label: 'Modrá', value: '1540028432614817862', emoji: '🔵' },
-                        { label: 'Zelená', value: '1540028872312225914', emoji: '🟢' },
-                        { label: 'Fialová', value: '1540028968273449002', emoji: '🟣' },
-                        { label: 'Žlutá', value: '1553041371986927657', emoji: '🟡' },
-                    ])
-            );
-
-            // Menu pro věk
-            const rowAge = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('select_age_role')
-                    .setPlaceholder('🎂 Vyber si svůj věk...')
-                    .addOptions([
-                        { label: '13-17+', value: '1553032262696566915', emoji: '🔞' },
-                        { label: '18+', value: '1553032409073586186', emoji: '🔞' },
-                    ])
-            );
-
-            await message.channel.send({
-                content: DEFAULT_ROLES_MSG + "\n\n👇 **Vyber si své role v menu níže:**",
-                components: [rowColor, rowAge]
-            });
-
-            await message.delete().catch(() => {});
-        } catch (err) {
-            console.error("Chyba při odesílání rolí:", err);
-            message.channel.send("Nastala chyba při vytváření zprávy s rolemi.");
-        }
-    }
-}
-
-// Reakce na interakci s menu (barvy i věk)
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isStringSelectMenu()) return;
-    
-    if (interaction.customId === 'select_color_role' || interaction.customId === 'select_age_role') {
-        const roleId = interaction.values[0];
-        const role = interaction.guild.roles.cache.get(roleId);
-
-        if (!role) {
-            return interaction.reply({ content: "⚠️ Role na serveru nebyla nalezena.", ephemeral: true });
-        }
-
-        try {
-            if (interaction.member.roles.cache.has(roleId)) {
-                await interaction.member.roles.remove(roleId);
-                await interaction.reply({ content: `❌ Role **${role.name}** ti byla odebrána.`, ephemeral: true });
-            } else {
-                await interaction.member.roles.add(roleId);
-                await interaction.reply({ content: `✅ Role **${role.name}** ti byla přidána!`, ephemeral: true });
-            }
-        } catch (err) {
-            console.error(err);
-            await interaction.reply({ content: "❌ Nemám oprávnění spravovat tuto roli! Zkontroluj pořadí rolí.", ephemeral: true });
-        }
-    }
-});
-
-client.login(process.env.DISCORD_TOKEN);
+                    .setPlaceholder
