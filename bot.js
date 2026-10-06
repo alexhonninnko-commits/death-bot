@@ -14,7 +14,7 @@ const client = new Client({
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-const RULES_MSG = `# 🛡️ 마고리 — PRAVIDLA
+const RULES_MSG = `# 🛡️ / — PRAVIDLA
 
 Vítej v NLKomunity. Jsme komunita pro lidi, kteří si chtějí pokecat, zahrát si a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
 
@@ -69,12 +69,10 @@ Pravidla nejsou vytvořená proto, aby někomu znepříjemňovala pobyt na serve
 client.once('ready', () => {
     console.log(`[BOT] Přihlášen jako: ${client.user.tag} (ID: ${client.user.id})`);
 
-    // --- NASTAVENÍ PROFILU BOTA PŘI SPUŠTĚNÍ ---
     client.user.setStatus('dnd');
     client.user.setActivity('Zabezpečuje server a mnoho dalšího', { type: ActivityType.Watching });
 });
 
-// --- VÍTÁNÍ NOVÝCH ČLENŮ ---
 client.on('guildMemberAdd', async (member) => {
     try {
         const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
@@ -82,50 +80,4 @@ client.on('guildMemberAdd', async (member) => {
 
         const welcomeEmbed = new EmbedBuilder()
             .setColor(0x5865F2)
-            .setDescription(`👋 **Nový člen na serveru!**\n\nVítej ${member}! Podívej se na pravidla a potvrď je, poté budeš moci prozkoumávat komunitu, jak se ti jen zachce.`)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }));
-
-        await channel.send({ embeds: [welcomeEmbed] });
-    } catch (err) {
-        console.error("Chyba při odesílání uvítací zprávy:", err);
-    }
-});
-
-client.on('messageCreate', async (message) => {
-    if (message.author.bot || !message.guild) return;
-
-    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        await handleCommands(message);
-        return;
-    }
-
-    const contentLower = message.content.toLowerCase();
-
-    // 1. Anti-Link
-    if (contentLower.includes("http://") || contentLower.includes("https://") || contentLower.includes("discord.gg/")) {
-        try {
-            await message.delete();
-            const warning = await message.channel.send(`${message.author}, posílání odkazů je zakázáno!`);
-            setTimeout(() => warning.delete().catch(() => {}), 5000);
-            return;
-        } catch (err) {
-            console.error("Chyba mazání odkazu:", err);
-        }
-    }
-
-    // 2. Anti-Spam
-    const userId = message.author.id;
-    const now = Date.now();
-    if (!userMessageTimestamps.has(userId)) {
-        userMessageTimestamps.set(userId, []);
-    }
-    let timestamps = userMessageTimestamps.get(userId);
-    timestamps.push(now);
-    timestamps = timestamps.filter(t => now - t <= 5000);
-    userMessageTimestamps.set(userId, timestamps);
-
-    if (timestamps.length > 5) {
-        try {
-            await message.delete();
-            const warning = await message.channel.send(`${message.author}, přestň spamovat!`);
-            setTimeout(() => warning.delete().
+            .setDescription
