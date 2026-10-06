@@ -14,39 +14,42 @@ const client = new Client({
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-// Rozděleno na dvě části kvůli limitu 2000 znaků na Discordu
+// První část pravidel (nečíslovaná)
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA (1/2)
 
 Vítej na 마고리. Jsme server pro lidi, kteří si chtějí pokecat, zahrát si, koukat na filmy a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
 
-### 1. Žádné drama
+### Žádné drama
 Osobní konflikty si řešte mimo veřejné chaty. Nezahlcuj komunitu hádkami, beefem nebo veřejným řešením osobních problémů.
 
-### 2. Spam a reklama
+### Spam a reklama
 Nespamuj zprávy, emoji, mentiony ani hlasové kanály. Reklamu na vlastní servery, projekty nebo jiné komunity posílej pouze tam, kde je to povolené.
 
-### 3. Nevhodný obsah
+### Nevhodný obsah
 Zakázaný je pornografický, extrémně násilný, šokující nebo jinak nevhodný obsah. Platí to pro zprávy, obrázky, videa, odkazy i profilový obsah.
 
-### 4. Osobní údaje
+### Osobní údaje
 Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefonní číslo, hesla nebo jiné citlivé informace.
 
-### 5. Podvody a škodlivý obsah
+### Podvody a škodlivý obsah
 Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
 
-const RULES_PART_2 = ### 6. Voice chat
+// Druhá část pravidel (nečíslovaná) + tresty a důležité
+const RULES_PART_2 = `# 🛡️ 마고리 — PRAVIDLA (2/2)
+
+### Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
 
-### 7. Respektuj moderátory
+### Respektuj moderátory
 Moderátoři jsou tu od toho, aby udržovali pořádek. Pokud máš problém s rozhodnutím moderátora, řeš ho v soukromí a slušně, ne veřejnou hádkou.
 
-### 8. Využívej správné kanály
+### Využívej správné kanály
 Piš věci tam, kam patří. Pomáhá to udržet server přehledný a příjemný pro všechny.
 
-### 9. Selský rozum
+### Selský rozum
 Ne všechno se dá napsat do pravidel. Pokud něco očividně škodí komunitě nebo ostatním členům, nedělej to.
 
-### 10. Neznalost pravidel se nepočítá 
+### Neznalost pravidel se nepočítá 
 Pravidla se můžou změnit neustále
 
 ---
@@ -146,18 +149,18 @@ async function handleCommands(message) {
         }
 
         try {
-            // Pošle první část
+            // Pošle první část pravidel
             await message.channel.send({ content: RULES_PART_1 });
 
-            // Pošle druhou část s výzvou k reakci
+            // Pošle druhou část pravidel s výzvou k reakci
             const secondMessage = await message.channel.send({
                 content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
 
-            // Přidá reakci na druhou (poslední) zprávu
+            // Přidá reakci na druhou zprávu
             await secondMessage.react('✅');
             
-            // Smaže původní příkaz administrátora
+            // Smaže příkaz administrátora
             await message.delete().catch(() => {});
         } catch (err) {
             console.error("Chyba při odesílání pravidel:", err);
