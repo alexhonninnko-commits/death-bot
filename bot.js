@@ -14,7 +14,8 @@ const client = new Client({
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-const RULES_MSG = `# 🛡️ 마고리 — PRAVIDLA
+// Rozděleno na dvě části kvůli limitu 2000 znaků na Discordu
+const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA (1/2)
 
 Vítej na 마고리. Jsme server pro lidi, kteří si chtějí pokecat, zahrát si, koukat na filmy a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
 
@@ -31,7 +32,9 @@ Zakázaný je pornografický, extrémně násilný, šokující nebo jinak nevho
 Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefonní číslo, hesla nebo jiné citlivé informace.
 
 ### 5. Podvody a škodlivý obsah
-Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.
+Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
+
+const RULES_PART_2 = `# 🛡️ 마고리 — PRAVIDLA (2/2)
 
 ### 6. Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
@@ -145,11 +148,18 @@ async function handleCommands(message) {
         }
 
         try {
-            const sentMessage = await message.channel.send({
-                content: RULES_MSG + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
+            // Pošle první část
+            await message.channel.send({ content: RULES_PART_1 });
+
+            // Pošle druhou část s výzvou k reakci
+            const secondMessage = await message.channel.send({
+                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
             });
 
-            await sentMessage.react('✅');
+            // Přidá reakci na druhou (poslední) zprávu
+            await secondMessage.react('✅');
+            
+            // Smaže původní příkaz administrátora
             await message.delete().catch(() => {});
         } catch (err) {
             console.error("Chyba při odesílání pravidel:", err);
