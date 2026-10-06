@@ -14,63 +14,23 @@ const client = new Client({
 // Sledování pro anti-spam
 const userMessageTimestamps = new Map();
 
-const RULES_MSG = `# 🛡️ / — PRAVIDLA
-
-Vítej v NLKomunity. Jsme komunita pro lidi, kteří si chtějí pokecat, zahrát si a být součástí pohodového prostředí. Respektuj ostatní a používej selský rozum.
-
-### 1. Žádné drama
-Osobní konflikty si řešte mimo veřejné chaty. Nezahlcuj komunitu hádkami, beefem nebo veřejným řešením osobních problémů.
-
-### 2. Spam a reklama
-Nespamuj zprávy, emoji, mentiony ani hlasové kanály. Reklamu na vlastní servery, projekty nebo jiné komunity posílej pouze tam, kde je to povolené.
-
-### 3. Nevhodný obsah
-Zakázaný je pornografický, extrémně násilný, šokující nebo jinak nevhodný obsah. Platí to pro zprávy, obrázky, videa, odkazy i profilový obsah.
-
-### 4. Osobní údaje
-Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefonní číslo, hesla nebo jiné citlivé informace.
-
-### 5. Podvody a škodlivý obsah
-Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.
-
-### 6. Voice chat
-V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
-
-### 7. Respektuj moderátory
-Moderátoři jsou tu od toho, aby udržovali pořádek. Pokud máš problém s rozhodnutím moderátora, řeš ho v soukromí a slušně, ne veřejnou hádkou.
-
-### 8. Využívej správné kanály
-Piš věci tam, kam patří. Pomáhá to udržet server přehledný a příjemný pro všechny.
-
-### 9. Selský rozum
-Ne všechno se dá napsat do pravidel. Pokud něco očividně škodí komunitě nebo ostatním členům, nedělej to.
-
-### 10. Neznalost pravidel se nepočítá 
-Pravidla se můžou změnit neustále
-
----
-
-## ⚠️ TRESTY
-Porušení pravidel může podle situace vést k:
-- upozornění
-- timeoutu
-- odstranění zpráv
-- kicku
-- dočasnému banu
-- permanentnímu banu
-
-Trest se může lišit podle závažnosti a opakování přestupku.
-
-## 📌 DŮLEŽITÉ
-Pravidla nejsou vytvořená proto, aby někomu znepříjemňovala pobyt na serveru. Mají zajistit, aby se tu mohli všichni normálně bavit, hrát a komunikovat.
-
-**Buď v pohodě. Respektuj ostatní. A hlavně si to užij. ❤️**`;
+const RULES_MSG = `# 🛡️ PRAVIDLA SERVERU\n\n` +
+`1. **Žádné drama:** Osobní konflikty řešte mimo veřejné chaty.\n` +
+`2. **Spam a reklama:** Nespamuj zprávy, emoji ani neposílej neschválenou reklamu.\n` +
+`3. **Nevhodný obsah:** Zakázán je pornografický, násilný nebo jinak nevhodný obsah.\n` +
+`4. **Osobní údaje:** Nesdílej svoje ani cizí citlivé údaje.\n` +
+`5. **Podvody:** Zákaz podvádění, šíření škodlivých odkazů a kradení účtů.\n` +
+`6. **Voice chat:** V hlasových kanálech platí stejná pravidla slušnosti.\n` +
+`7. **Respektuj moderátory:** Rozhodnutí moderátorů se neřeší veřejnou hádkou.\n` +
+`8. **Správné kanály:** Piš věci tam, kam patří.\n` +
+`9. **Selský rozum:** Chovej se normálně a neškod komunitě.\n` +
+`10. **Neznalost pravidel se nepočítá.**\n\n` +
+`**Buď v pohodě, respektuj ostatní a užij si to! ❤️**`;
 
 client.once('ready', () => {
     console.log(`[BOT] Přihlášen jako: ${client.user.tag} (ID: ${client.user.id})`);
-
     client.user.setStatus('dnd');
-    client.user.setActivity('Zabezpečuje server a mnoho dalšího', { type: ActivityType.Watching });
+    client.user.setActivity('Zabezpečuje server', { type: ActivityType.Watching });
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -80,4 +40,171 @@ client.on('guildMemberAdd', async (member) => {
 
         const welcomeEmbed = new EmbedBuilder()
             .setColor(0x5865F2)
-            .setDescription
+            .setDescription(`👋 **Nový člen na serveru!**\n\nVítej ${member}! Podívej se na pravidla a potvrď je.`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }));
+
+        await channel.send({ embeds: [welcomeEmbed] });
+    } catch (err) {
+        console.error("Chyba při odesílání uvítací zprávy:", err);
+    }
+});
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot || !message.guild) return;
+
+    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        await handleCommands(message);
+        return;
+    }
+
+    const contentLower = message.content.toLowerCase();
+
+    if (contentLower.includes("http://") || contentLower.includes("https://") || contentLower.includes("discord.gg/")) {
+        try {
+            await message.delete();
+            const warning = await message.channel.send(`${message.author}, posílání odkazů je zakázáno!`);
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
+            return;
+        } catch (err) {
+            console.error("Chyba mazání odkazu:", err);
+        }
+    }
+
+    const userId = message.author.id;
+    const now = Date.now();
+    if (!userMessageTimestamps.has(userId)) {
+        userMessageTimestamps.set(userId, []);
+    }
+    let timestamps = userMessageTimestamps.get(userId);
+    timestamps.push(now);
+    timestamps = timestamps.filter(t => now - t <= 5000);
+    userMessageTimestamps.set(userId, timestamps);
+
+    if (timestamps.length > 5) {
+        try {
+            await message.delete();
+            const warning = await message.channel.send(`${message.author}, přestaň spamovat!`);
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
+            return;
+        } catch (err) {
+            console.error("Chyba mazání spamu:", err);
+        }
+    }
+
+    await handleCommands(message);
+});
+
+async function handleCommands(message) {
+    if (!message.content.startsWith('!')) return;
+
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+
+    if (command === 'setup_roles') {
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply("Na tento příkaz nemáš práva!");
+        }
+
+        try {
+            const rowColor = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_color_role')
+                    .setPlaceholder('🎨 Vyber si barvu jména...')
+                    .addOptions([
+                        { label: 'Červená', value: '1540028254885257256', emoji: '🔴' },
+                        { label: 'Modrá', value: '1540028432614817862', emoji: '🔵' },
+                        { label: 'Zelená', value: '1540028872312225914', emoji: '🟢' },
+                        { label: 'Fialová', value: '1540028968273449002', emoji: '🟣' },
+                        { label: 'Žlutá', value: '1553041371986927657', emoji: '🟡' },
+                    ])
+            );
+
+            const rowAge = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_age_role')
+                    .setPlaceholder('🎂 Vyber si svůj věk...')
+                    .addOptions([
+                        { label: '13-17+', value: '1553032262696566915', emoji: '🔞' },
+                        { label: '18+', value: '1553032409073586186', emoji: '🔞' },
+                    ])
+            );
+
+            const sentMessage = await message.channel.send({
+                content: RULES_MSG + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role a níže si vyber své doplňkové role:**",
+                components: [rowColor, rowAge]
+            });
+
+            await sentMessage.react('✅');
+            await message.delete().catch(() => {});
+        } catch (err) {
+            console.error("Chyba při odesílání pravidel a rolí:", err);
+            message.channel.send("Nastala chyba při vytváření zprávy s pravidly.");
+        }
+    }
+}
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) {
+        try { await reaction.fetch(); } catch (err) { return; }
+    }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            const roleId = '1557065568832458752';
+            if (!member.roles.cache.has(roleId)) {
+                await member.roles.add(roleId).catch(err => console.error("Chyba při přidávání role:", err));
+            }
+        }
+    }
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) {
+        try { await reaction.fetch(); } catch (err) { return; }
+    }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            const roleId = '1557065568832458752';
+            if (member.roles.cache.has(roleId)) {
+                await member.roles.remove(roleId).catch(err => console.error("Chyba při odebrání role:", err));
+            }
+        }
+    }
+});
+
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isStringSelectMenu()) return;
+    
+    if (interaction.customId === 'select_color_role' || interaction.customId === 'select_age_role') {
+        const roleId = interaction.values[0];
+        const role = interaction.guild.roles.cache.get(roleId);
+
+        if (!role) {
+            return interaction.reply({ content: "⚠️ Role na serveru nebyla nalezena.", ephemeral: true });
+        }
+
+        try {
+            if (interaction.member.roles.cache.has(roleId)) {
+                await interaction.member.roles.remove(roleId);
+                await interaction.reply({ content: `❌ Role **${role.name}** ti byla odebrána.`, ephemeral: true });
+            } else {
+                await interaction.member.roles.add(roleId);
+                await interaction.reply({ content: `✅ Role **${role.name}** ti byla přidána!`, ephemeral: true });
+            }
+        } catch (err) {
+            console.error(err);
+            await interaction.reply({ content: "❌ Nemám oprávnění spravovat tuto roli!", ephemeral: true });
+        }
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
