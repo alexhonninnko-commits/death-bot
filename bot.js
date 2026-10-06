@@ -34,9 +34,7 @@ Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefo
 ### 5. Podvody a škodlivý obsah
 Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
 
-const RULES_PART_2 = `# 🛡️ 마고리 — PRAVIDLA (2/2)
-
-### 6. Voice chat
+const RULES_PART_2 = ### 6. Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
 
 ### 7. Respektuj moderátory
