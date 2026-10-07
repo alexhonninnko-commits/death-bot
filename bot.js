@@ -14,8 +14,10 @@ const client = new Client({
 });
 
 const userMessageTimestamps = new Map();
-const LOG_CHANNEL_ID = '1557061803794763816';
-const WELCOME_CHANNEL_ID = '1557061675369111624'; // Pokud chceš, můžeš sem dát ID kanálu pro vítání
+const LOG_CHANNEL_ID = '1552794840025010227';
+
+// Zde definujeme role, které se maji přes reakci dávat
+const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
 
@@ -86,7 +88,7 @@ async function sendLog(guild, embed) {
     }
 }
 
-// Uvítací zpráva (hledá podle jména kanálu, případně ho můžeš upravit)
+// Uvítací zpráva
 client.on('guildMemberAdd', async (member) => {
     try {
         const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
@@ -103,7 +105,7 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// === LOGY (Role, Bamy, Kicky, Timeouty, Kanály, Voice) ===
+// === LOGY ===
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
@@ -273,7 +275,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     await sendLog(guild, embed);
 });
 
-// === OCHRANA (Spam, Odkazy) & PŘÍKAZY ===
+// === OCHRANA & PŘÍKAZY ===
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
@@ -324,50 +326,4 @@ async function handleCommands(message) {
         try {
             await message.channel.send({ content: RULES_PART_1 });
             const secondMessage = await message.channel.send({
-                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
-            });
-            await secondMessage.react('✅');
-            await message.delete().catch(() => {});
-        } catch (err) {
-            console.error("Chyba setup_roles:", err);
-        }
-    }
-}
-
-// === REAKCE (Ověřování rolí) ===
-
-client.on('messageReactionAdd', async (reaction, user) => {
-    if (user.bot) return;
-    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
-
-    if (reaction.emoji.name === '✅') {
-        const guild = reaction.message.guild;
-        if (!guild) return;
-        const member = await guild.members.fetch(user.id).catch(() => null);
-        if (member) {
-            const roleId = '1557065568832458752';
-            if (!member.roles.cache.has(roleId)) {
-                await member.roles.add(roleId).catch(() => {});
-            }
-        }
-    }
-});
-
-client.on('messageReactionRemove', async (reaction, user) => {
-    if (user.bot) return;
-    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
-
-    if (reaction.emoji.name === '✅') {
-        const guild = reaction.message.guild;
-        if (!guild) return;
-        const member = await guild.members.fetch(user.id).catch(() => null);
-        if (member) {
-            const roleId = '1557065568832458752';
-            if (member.roles.cache.has(roleId)) {
-                await member.roles.remove(roleId).catch(() => {});
-            }
-        }
-    }
-});
-
-client.login(process.env.DISCORD_TOKEN);
+                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovacích
