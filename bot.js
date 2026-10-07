@@ -360,13 +360,13 @@ client.on('messageReactionRemove', async (reaction, user) => {
     if (reaction.emoji.name === '✅') {
         const guild = reaction.message.guild;
         if (!guild) return;
-        const member = await guild.members.fetch(user.id).catch(() => null);
-        if (member) {
-            const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
-            if (member.roles.cache.has(roleId)) {
-                await member.roles.remove(roleId).catch(() => {});
-            }
-        }
+const member = await guild.members.fetch(user.id).catch(() => null);
+if (member) {
+    const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
+    if (member.roles.cache.has(roleId)) { // <--- TADY JE CHYBA: proměnná 'roleId' neexistuje, je to 'ROLE_IDS' jako pole!
+        await member.roles.remove(roleId).catch(() => {});
+    }
+}
     }
 });
 
