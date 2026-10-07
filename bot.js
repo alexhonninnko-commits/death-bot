@@ -16,7 +16,7 @@ const client = new Client({
 const userMessageTimestamps = new Map();
 const LOG_CHANNEL_ID = '1557061803794763816';
 
-// Seznam obou rolí pro ověření přes reakci
+// Zde jsou ID obou rolí, které se mají po reakci dát/vzít
 const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
@@ -36,7 +36,7 @@ Zakázaný je pornografický, extrémně násilný, šokující nebo jinak nevho
 Nesdílej svoje ani cizí osobní údaje. Patří sem například adresa, telefonní číslo, hesla nebo jiné citlivé informace.
 
 ### Podvody a škodlivý obsah
-Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokoušet někomu poškodit účet či zařízení.`;
+Je zakázáno podvádět ostatní členy, vydávat se za někoho jiného, krást účty, posílat škodlivé odkazy nebo se pokusit někomu poškodit účet či zařízení.`;
 
 const RULES_PART_2 = `### Voice chat
 V hlasových kanálech platí stejná pravidla jako v textových. Neobtěžuj ostatní, nepouštěj úmyslně extrémně hlasité zvuky a respektuj ostatní členy.
@@ -51,7 +51,7 @@ Piš věci tam, kam patří. Pomáhá to udržet server přehledný a příjemn�
 Ne všechno se dá napsat do pravidel. Pokud něco očividně škodí komunitě nebo ostatním členům, nedělej to.
 
 ### Neznalost pravidel se nepočítá 
-Pravidla se můžou změnit neustále
+Pravidla se můžou kdykoliv změnit.
 
 ---
 
@@ -336,7 +336,7 @@ async function handleCommands(message) {
     }
 }
 
-// === REAKCE (Ověřování rolí) ===
+// === REAKCE (Dávání a odebírání obou rolí) ===
 
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
@@ -349,7 +349,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
         if (member) {
             for (const roleId of ROLE_IDS) {
                 if (!member.roles.cache.has(roleId)) {
-                    await member.roles.add(roleId).catch(() => {});
+                    await member.roles.add(roleId).catch((err) => {
+                        console.error(`Nepodařilo se přidat roli ${roleId}:`, err);
+                    });
                 }
             }
         }
@@ -365,9 +367,11 @@ client.on('messageReactionRemove', async (reaction, user) => {
         if (!guild) return;
         const member = await guild.members.fetch(user.id).catch(() => null);
         if (member) {
-            for (const roleId of ROLE_IDS) = ['1557065568832458752', '1557420636178092102'];
+            for (const roleId of ROLE_IDS) {
                 if (member.roles.cache.has(roleId)) {
-                    await member.roles.remove(roleId).catch(() => {});
+                    await member.roles.remove(roleId).catch((err) => {
+                        console.error(`Nepodařilo se odebrat roli ${roleId}:`, err);
+                    });
                 }
             }
         }
