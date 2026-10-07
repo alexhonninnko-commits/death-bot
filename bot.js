@@ -15,8 +15,9 @@ const client = new Client({
 
 const userMessageTimestamps = new Map();
 const LOG_CHANNEL_ID = '1557061803794763816';
+const WELCOME_CHANNEL_ID = '1557061675369111624'; // ID kanálu pro uvítací zprávy
 
-// Zde jsou ID obou rolí, které se mají po reakci dát/vzít
+// Zde jsou ID obou rolí pro ověření přes reakci
 const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
@@ -88,11 +89,11 @@ async function sendLog(guild, embed) {
     }
 }
 
-// Uvítací zpráva
+// Uvítací zpráva (posílá se přímo na zadané ID kanálu)
 client.on('guildMemberAdd', async (member) => {
     try {
-        const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
-        if (!channel) return;
+        const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
+        if (!channel || !channel.isTextBased()) return;
 
         const welcomeEmbed = new EmbedBuilder()
             .setColor(0x5865F2)
