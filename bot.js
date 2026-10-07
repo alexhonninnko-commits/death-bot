@@ -14,7 +14,7 @@ const client = new Client({
 });
 
 const userMessageTimestamps = new Map();
-const LOG_CHANNEL_ID = '1552794840025010227';
+const LOG_CHANNEL_ID = '1557061803794763816';
 
 // Seznam rolí pro ověření přes reakci
 const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
