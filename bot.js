@@ -14,8 +14,8 @@ const client = new Client({
 });
 
 const userMessageTimestamps = new Map();
-const LOG_CHANNEL_ID = '1552794840025010227';
-const WELCOME_CHANNEL_ID = 'ZDE_VLOZ_ID_KANALU_VITANI'; // Pokud chceš, můžeš sem dát ID kanálu pro vítání
+const LOG_CHANNEL_ID = '1557061803794763816';
+const WELCOME_CHANNEL_ID = '1557061675369111624'; // Pokud chceš, můžeš sem dát ID kanálu pro vítání
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
 
