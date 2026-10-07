@@ -16,7 +16,7 @@ const client = new Client({
 const userMessageTimestamps = new Map();
 const LOG_CHANNEL_ID = '1552794840025010227';
 
-// Zde definujeme role, které se maji přes reakci dávat
+// Seznam rolí pro ověření přes reakci
 const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
@@ -326,4 +326,52 @@ async function handleCommands(message) {
         try {
             await message.channel.send({ content: RULES_PART_1 });
             const secondMessage = await message.channel.send({
-                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovacích
+                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovacích rolí:**"
+            });
+            await secondMessage.react('✅');
+            await message.delete().catch(() => {});
+        } catch (err) {
+            console.error("Chyba setup_roles:", err);
+        }
+    }
+}
+
+// === REAKCE (Ověřování rolí) ===
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            for (const roleId of ROLE_IDS) {
+                if (!member.roles.cache.has(roleId)) {
+                    await member.roles.add(roleId).catch(() => {});
+                }
+            }
+        }
+    }
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            for (const roleId of ROLE_IDS) {
+                if (member.roles.cache.has(roleId)) {
+                    await member.roles.remove(roleId).catch(() => {});
+                }
+            }
+        }
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
