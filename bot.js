@@ -15,6 +15,7 @@ const client = new Client({
 
 const userMessageTimestamps = new Map();
 const LOG_CHANNEL_ID = '1552794840025010227';
+const WELCOME_CHANNEL_ID = 'ZDE_VLOZ_ID_KANALU_VITANI'; // Pokud chceš, můžeš sem dát ID kanálu pro vítání
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
 
@@ -85,6 +86,7 @@ async function sendLog(guild, embed) {
     }
 }
 
+// Uvítací zpráva (hledá podle jména kanálu, případně ho můžeš upravit)
 client.on('guildMemberAdd', async (member) => {
     try {
         const channel = member.guild.channels.cache.find(ch => ch.name === '👋・vítáme-tě' && ch.isTextBased());
@@ -100,3 +102,272 @@ client.on('guildMemberAdd', async (member) => {
         console.error("Chyba při odesílání uvítací zprávy:", err);
     }
 });
+
+// === LOGY (Role, Bamy, Kicky, Timeouty, Kanály, Voice) ===
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
+    if (addedRoles.size === 0) return;
+
+    setTimeout(async () => {
+        try {
+            const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate });
+            const log = fetchedLogs.entries.first();
+            let executor = log ? log.executor : { tag: "Neznámý", id: newMember.guild.ownerId };
+
+            for (const role of addedRoles.values()) {
+                const dangerousPermissions = [
+                    PermissionsBitField.Flags.Administrator,
+                    PermissionsBitField.Flags.ManageRoles,
+                    PermissionsBitField.Flags.ManageChannels,
+                    PermissionsBitField.Flags.BanMembers,
+                    PermissionsBitField.Flags.KickMembers,
+                    PermissionsBitField.Flags.ManageGuild
+                ];
+
+                const hasDangerous = dangerousPermissions.some(perm => role.permissions.has(perm));
+
+                const embed = new EmbedBuilder()
+                    .setColor(hasDangerous ? 0xED4245 : 0x57F287)
+                    .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
+                    .setTitle("👤 Role Given")
+                    .setDescription(`The <@&${role.id}> role was given to <@${newMember.id}>`)
+                    .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
+                    .setFooter({ text: `ID: ${newMember.id}` })
+                    .setTimestamp();
+
+                if (hasDangerous) {
+                    embed.addFields({ name: "WARNING!", value: "```diff\n- Dangerous permissions granted\n```", inline: false });
+                }
+
+                await sendLog(newMember.guild, embed);
+            }
+        } catch (err) {
+            console.error("Chyba logu rolí:", err);
+        }
+    }, 1000);
+});
+
+client.on('guildBanAdd', async (ban) => {
+    setTimeout(async () => {
+        try {
+            const fetchedLogs = await ban.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd });
+            const log = fetchedLogs.entries.first();
+            let executor = log ? log.executor : { tag: "Neznámý", id: ban.user.id };
+
+            const embed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
+                .setTitle("🔨 Ban Given")
+                .setDescription(`Uživatel **${ban.user.tag}** byl zabanován.`)
+                .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
+                .setFooter({ text: `ID: ${ban.user.id}` })
+                .setTimestamp();
+
+            await sendLog(ban.guild, embed);
+        } catch (err) {
+            console.error("Chyba logu banu:", err);
+        }
+    }, 1000);
+});
+
+client.on('guildMemberRemove', async (member) => {
+    setTimeout(async () => {
+        try {
+            const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick });
+            const log = fetchedLogs.entries.first();
+            if (!log || log.target.id !== member.id) return;
+
+            let executor = log.executor;
+
+            const embed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
+                .setTitle("👢 Kick Given")
+                .setDescription(`Uživatel **${member.user.tag}** byl vyhozen ze serveru.`)
+                .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
+                .setFooter({ text: `ID: ${member.id}` })
+                .setTimestamp();
+
+            await sendLog(member.guild, embed);
+        } catch (err) {
+            console.error("Chyba logu kicku:", err);
+        }
+    }, 1000);
+});
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
+        if (newMember.communicationDisabledUntilTimestamp) {
+            setTimeout(async () => {
+                try {
+                    const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
+                    const log = fetchedLogs.entries.first();
+                    let executor = log ? log.executor : { tag: "Neznámý", id: newMember.id };
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFEE75C)
+                        .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
+                        .setTitle("⏱️ Timeout Given")
+                        .setDescription(`Uživatel **${newMember.user.tag}** dostal timeout.`)
+                        .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
+                        .setFooter({ text: `ID: ${newMember.id}` })
+                        .setTimestamp();
+
+                    await sendLog(newMember.guild, embed);
+                } catch (err) {
+                    console.error("Chyba logu timeoutu:", err);
+                }
+            }, 1000);
+        }
+    }
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!newChannel.guild) return;
+    setTimeout(async () => {
+        try {
+            const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const log = fetchedLogs.entries.first();
+            let executor = log ? log.executor : { tag: "Neznámý", id: newChannel.id };
+
+            const embed = new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
+                .setTitle("📝 Channel Updated")
+                .setDescription(`Kanál **${newChannel.name}** byl upraven.`)
+                .addFields({ name: "Updated by:", value: `<@${executor.id}>`, inline: false })
+                .setFooter({ text: `ID: ${newChannel.id}` })
+                .setTimestamp();
+
+            await sendLog(newChannel.guild, embed);
+        } catch (err) {
+            console.error("Chyba logu kanálu:", err);
+        }
+    }, 1000);
+});
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const user = newState.member.user;
+    const guild = newState.guild;
+
+    let actionText = "";
+    if (!oldState.channelId && newState.channelId) {
+        actionText = `se připojil do VC **${newState.channel.name}**`;
+    } else if (oldState.channelId && !newState.channelId) {
+        actionText = `opustil VC **${oldState.channel.name}**`;
+    } else if (oldState.channelId !== newState.channelId) {
+        actionText = `přestoupil z VC **${oldState.channel.name}** do **${newState.channel.name}**`;
+    } else {
+        return;
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+        .setTitle("🔊 Voice Activity")
+        .setDescription(`Uživatel **${user.tag}** ${actionText}`)
+        .setFooter({ text: `ID: ${user.id}` })
+        .setTimestamp();
+
+    await sendLog(guild, embed);
+});
+
+// === OCHRANA (Spam, Odkazy) & PŘÍKAZY ===
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot || !message.guild) return;
+
+    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        await handleCommands(message);
+        return;
+    }
+
+    const contentLower = message.content.toLowerCase();
+    if (contentLower.includes("http://") || contentLower.includes("https://") || contentLower.includes("discord.gg/")) {
+        try {
+            await message.delete();
+            const warning = await message.channel.send(`${message.author}, posílání odkazů je zakázáno!`);
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
+            return;
+        } catch (err) {}
+    }
+
+    const userId = message.author.id;
+    const now = Date.now();
+    if (!userMessageTimestamps.has(userId)) userMessageTimestamps.set(userId, []);
+    let timestamps = userMessageTimestamps.get(userId);
+    timestamps.push(now);
+    timestamps = timestamps.filter(t => now - t <= 5000);
+    userMessageTimestamps.set(userId, timestamps);
+
+    if (timestamps.length > 5) {
+        try {
+            await message.delete();
+            const warning = await message.channel.send(`${message.author}, přestaň spamovat!`);
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
+            return;
+        } catch (err) {}
+    }
+
+    await handleCommands(message);
+});
+
+async function handleCommands(message) {
+    if (!message.content.startsWith('!')) return;
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+
+    if (command === 'setup_roles') {
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+
+        try {
+            await message.channel.send({ content: RULES_PART_1 });
+            const secondMessage = await message.channel.send({
+                content: RULES_PART_2 + "\n\n👇 **Reaguj emoji ✅ pro získání ověřovací role:**"
+            });
+            await secondMessage.react('✅');
+            await message.delete().catch(() => {});
+        } catch (err) {
+            console.error("Chyba setup_roles:", err);
+        }
+    }
+}
+
+// === REAKCE (Ověřování rolí) ===
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            const roleId = '1557065568832458752';
+            if (!member.roles.cache.has(roleId)) {
+                await member.roles.add(roleId).catch(() => {});
+            }
+        }
+    }
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+    if (user.bot) return;
+    if (reaction.partial) { try { await reaction.fetch(); } catch (err) { return; } }
+
+    if (reaction.emoji.name === '✅') {
+        const guild = reaction.message.guild;
+        if (!guild) return;
+        const member = await guild.members.fetch(user.id).catch(() => null);
+        if (member) {
+            const roleId = '1557065568832458752';
+            if (member.roles.cache.has(roleId)) {
+                await member.roles.remove(roleId).catch(() => {});
+            }
+        }
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
