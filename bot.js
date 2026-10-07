@@ -16,7 +16,7 @@ const client = new Client({
 const userMessageTimestamps = new Map();
 const LOG_CHANNEL_ID = '1552794840025010227';
 
-// Seznam obou rolí pro ověření přes reakci
+// Obě role pro ověření přes reakci
 const ROLE_IDS = ['1557065568832458752', '1557420636178092102'];
 
 const RULES_PART_1 = `# 🛡️ 마고리 — PRAVIDLA
@@ -163,50 +163,3 @@ client.on('guildBanAdd', async (ban) => {
                 .setTitle("🔨 Ban Given")
                 .setDescription(`Uživatel **${ban.user.tag}** byl zabanován.`)
                 .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
-                .setFooter({ text: `ID: ${ban.user.id}` })
-                .setTimestamp();
-
-            await sendLog(ban.guild, embed);
-        } catch (err) {
-            console.error("Chyba logu banu:", err);
-        }
-    }, 1000);
-});
-
-client.on('guildMemberRemove', async (member) => {
-    setTimeout(async () => {
-        try {
-            const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick });
-            const log = fetchedLogs.entries.first();
-            if (!log || log.target.id !== member.id) return;
-
-            let executor = log.executor;
-
-            const embed = new EmbedBuilder()
-                .setColor(0xED4245)
-                .setAuthor({ name: executor.tag, iconURL: executor.displayAvatarURL?.() })
-                .setTitle("👢 Kick Given")
-                .setDescription(`Uživatel **${member.user.tag}** byl vyhozen ze serveru.`)
-                .addFields({ name: "Given by:", value: `<@${executor.id}>`, inline: false })
-                .setFooter({ text: `ID: ${member.id}` })
-                .setTimestamp();
-
-            await sendLog(member.guild, embed);
-        } catch (err) {
-            console.error("Chyba logu kicku:", err);
-        }
-    }, 1000);
-});
-
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
-        if (newMember.communicationDisabledUntilTimestamp) {
-            setTimeout(async () => {
-                try {
-                    const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
-                    const log = fetchedLogs.entries.first();
-                    let executor = log ? log.executor : { tag: "Neznámý", id: newMember.id };
-
-                    const embed = new EmbedBuilder()
-                        .setColor(0xFEE75C)
-                        .setAuthor({ name: executor.tag, iconURL: executor.
